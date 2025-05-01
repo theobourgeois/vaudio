@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { VisualizerObjectBuilder } from './create-visualizer-object';
 
 export type ObjectId = number | string;
 
@@ -30,10 +31,22 @@ export type RenderArgs<T> = {
   delta: number;
 };
 
-export type RenderFn<T extends VisualizerObject> = (args: RenderArgs<T>) => Promise<void> | void;
+export type RenderFn<T extends VisualizerObject> = (
+  args: RenderArgs<T>
+) => Promise<void> | void;
 
 export type TriggerRenderFn = <T extends VisualizerObject>(
   id: ObjectId,
   renderFn: RenderFn<T>,
   props: T
 ) => void;
+
+export type WithPlugin<
+  TDefaults extends Record<string, unknown>,
+  TFullConfig extends VisualizerObject,
+  TGeom extends THREE.BufferGeometry | undefined,
+  TMat extends THREE.Material | undefined,
+  TObj extends THREE.Object3D
+> = ReturnType<
+  VisualizerObjectBuilder<TDefaults, TFullConfig, TGeom, TMat, TObj>['render']
+>;

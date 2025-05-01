@@ -4,7 +4,7 @@ import { defaultVisualizerObject } from './defaults'; // Adjust path as needed
 import { awaitMaybe } from './await-maybe'; // Adjust path as needed
 
 // Keep track of the configuration state and types as they are defined
-interface RenderObjectConfigState<
+export interface RenderObjectConfigState<
   TDefaults extends Record<string, unknown> = Record<string, unknown>, // User-defined defaults
   TFullConfig extends VisualizerObject = VisualizerObject, // Combined defaults + VisualizerObject
   TGeom extends THREE.BufferGeometry | undefined = undefined,

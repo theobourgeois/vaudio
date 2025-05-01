@@ -1,8 +1,7 @@
 // @vaudio/react/create-react-component.ts
 import { createVisualizerComponent } from './create-visualizer-component';
-import { VisualizerObjectBuilder, VisualizerObject } from '@vaudio/core';
+import { VisualizerObject, WithPlugin } from '@vaudio/core';
 import * as THREE from 'three';
-
 /**
  * A higher-order function that converts a VisualizerObjectBuilder's render output into a React component.
  * This function is used to bridge the gap between the core visualization system and React components.
@@ -30,13 +29,15 @@ import * as THREE from 'three';
  * <MyVisualizer.asVisualizerComponent() size={2} color="red" />
  * ```
  */
+// create a type for this function
+
 export function withReact<
   TDefaults extends Record<string, unknown>,
   TFullConfig extends VisualizerObject,
   TGeom extends THREE.BufferGeometry | undefined,
   TMat extends THREE.Material | undefined,
   TObj extends THREE.Object3D
->(builderOutput: ReturnType<VisualizerObjectBuilder<TDefaults, TFullConfig, TGeom, TMat, TObj>['render']>) {
+>(builderOutput: WithPlugin<TDefaults, TFullConfig, TGeom, TMat, TObj>) {
   return {
     ...builderOutput,
     asVisualizerComponent: () =>
