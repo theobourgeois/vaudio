@@ -1,2 +1,2 @@
-export * from './audio-helpers';
+export * from './audio-utils';
 export * from './smooted-value';

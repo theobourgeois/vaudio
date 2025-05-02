@@ -50,11 +50,11 @@ The root component that sets up the Three.js scene, manages audio analysis, and 
 
 ### `withReact()`
 
-Turns a `renderObject()` builder into a React component.
+Turns a `createVisualizerObject()` builder into a React component.
 
 ```tsx
 const MyVisualizer = withReact(
-  renderObject()
+  createVisualizerObject()
     .defaults(() => ({ size: 1, color: 'blue' }))
     .geometry(({ layer }) => new THREE.BoxGeometry(layer.size))
     .material(({ layer }) => new THREE.MeshStandardMaterial({ color: layer.color }))
@@ -94,7 +94,7 @@ const { triggerRender, dataArrayRef } = useVisualizer();
 ```ts
 // MyVisualizer.ts
 export const MyVisualizer = withReact(
-  renderObject()
+  createVisualizerObject()
     .defaults(() => ({ size: 1, color: 'cyan', domain: 'frequency' }))
     .geometry(({ layer }) => new THREE.SphereGeometry(layer.size, 32, 32))
     .material(({ layer }) => new THREE.MeshStandardMaterial({ color: layer.color }))

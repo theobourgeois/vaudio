@@ -1,6 +1,6 @@
 {
   "name": "@vaudio/react",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "React components and hooks for audio visualization",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -17,14 +17,13 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@vaudio/core": "workspace:*",
+    "@vaudio/core": "latest",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
-    "@vaudio/core": "0.1.6",
     "tsup": "^8.0.2",
     "typescript": "~5.7.2"
   },
@@ -48,4 +47,4 @@
   ],
   "author": "Théo Bourgeois",
   "license": "MIT"
-} 
+}

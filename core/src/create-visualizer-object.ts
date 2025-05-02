@@ -269,12 +269,12 @@ export class VisualizerObjectBuilder<
     // Runtime check: Ensure enough info to create an object
     if (!this.config.createObjectFn && !this.config.geometryFn) {
       throw new Error(
-        'renderObject error: .geometry() or .createObject() must be called before .render()'
+        'createVisualizerObject error: .geometry() or .createObject() must be called before .render()'
       );
     }
     if (!this.config.createObjectFn && !this.config.materialFn) {
       throw new Error(
-        'renderObject error: .material() or .createObject() must be called before .render()'
+        'createVisualizerObject error: .material() or .createObject() must be called before .render()'
       );
     }
 
@@ -349,7 +349,7 @@ export class VisualizerObjectBuilder<
  * 
  * @example
  * ```tsx
- * const MyObject = renderObject()
+ * const MyObject = createVisualizerObject()
  *   .defaults(() => ({ size: 1 }))
  *   .geometry(({ layer }) => new THREE.BoxGeometry(layer.size))
  *   .material(({ layer }) => new THREE.MeshStandardMaterial({ color: layer.color }))
