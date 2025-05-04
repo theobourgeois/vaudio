@@ -19,12 +19,10 @@ export type VisualizerObject = {
   domain: 'frequency' | 'time';
 } & Transform;
 
-export type IdToMesh = Map<ObjectId, THREE.Object3D>;
-
 export type RenderArgs<T> = {
   id: ObjectId;
   props: T;
-  idToMesh: IdToMesh;
+  idToObjectMap: Map<ObjectId, THREE.Object3D>;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   audioData: Uint8Array;
@@ -44,9 +42,7 @@ export type TriggerRenderFn = <T extends VisualizerObject>(
 export type WithPlugin<
   TDefaults extends Record<string, unknown>,
   TFullConfig extends VisualizerObject,
-  TGeom extends THREE.BufferGeometry | undefined,
-  TMat extends THREE.Material | undefined,
   TObj extends THREE.Object3D
 > = ReturnType<
-  VisualizerObjectBuilder<TDefaults, TFullConfig, TGeom, TMat, TObj>['render']
+  VisualizerObjectBuilder<TDefaults, TFullConfig, TObj>['render']
 >;

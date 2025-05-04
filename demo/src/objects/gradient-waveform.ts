@@ -3,23 +3,23 @@ import { createVisualizerObject } from '@vaudio/core';
 import * as THREE from 'three';
 import { withReact } from '@vaudio/react';
 
-export const GradientWaveform = withReact(
+const GradientWaveform = withReact(
   createVisualizerObject()
     .defaults(() => ({
-      barCount: 88,
-      barWidth: 0.3,
+      barCount: 50,
+      barWidth: 0.2,
       barSpacing: 0.05,
-      heightScale: 0.08, // Increased from 5.0 to 15.0
-      scaleY: 20,
-      color1: '#0000ff',
+      heightScale: 0.9,
+      color1: '#1000ff',
       color2: '#ff0000',
-      gradientSpeed: 0.05,
+      scaleY: 2,
+      gradientSpeed: 0.009,
       pulseIntensity: 0.4,
-      glowIntensity: 0.5,
-      maxHeight: 2.0, // Maximum height multiplier
-      smoothFactor: 5, // Smoothing factor for height changes
+      glowIntensity: 5,
+      maxHeight: 100,
+      smoothFactor: 10,
     }))
-    .geometry(({ props }) => {
+    .object(({ props }) => {
       const geometry = new THREE.BufferGeometry();
       const positions = [];
       const uvs = [];
@@ -57,9 +57,6 @@ export const GradientWaveform = withReact(
       geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       geometry.setIndex(indices);
 
-      return geometry;
-    })
-    .material(({ props }) => {
       const uniforms = {
         u_time: { value: 0 },
         u_color1: { value: new THREE.Color(props.color1) },
@@ -75,7 +72,7 @@ export const GradientWaveform = withReact(
         u_smoothFactor: { value: props.smoothFactor },
       };
 
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
           varying vec2 vUv;
@@ -97,16 +94,16 @@ export const GradientWaveform = withReact(
             float height = position.y;
             
             // Combine all frequency bands for more dramatic effect
-            float audioIntensity = (u_bass * 1.5 + u_mid + u_treble * 0.5) / 3.0;
+            float audioIntensity = (u_bass * 2.0 + u_mid * 1.5 + u_treble) / 4.5;
             
             // Apply exponential scaling for more dramatic height changes
-            float scaledHeight = pow(audioIntensity, 0.5) * u_heightScale;
+            float scaledHeight = pow(audioIntensity, 0.3) * u_heightScale;
             
             // Add pulsing effect
             float pulse = sin(u_time * 2.0 + position.x * 5.0) * 0.5 + 0.5;
             scaledHeight *= (1.0 + u_pulseIntensity * pulse);
             
-            // Cap the maximum height
+            // Apply maxHeight limit
             scaledHeight = min(scaledHeight, u_maxHeight);
             
             // Apply smooth height transition
@@ -157,10 +154,11 @@ export const GradientWaveform = withReact(
         transparent: true,
         blending: THREE.AdditiveBlending,
       });
+
+      return new THREE.Mesh(geometry, material);
     })
-    .render(({ mesh, audioData, props, delta }) => {
-      if (!(mesh.material instanceof THREE.ShaderMaterial)) return;
-      const shader = mesh.material as THREE.ShaderMaterial;
+    .render(({ object, audioData, props, delta }) => {
+      const shader = object.material;
 
       // Update time uniform
       shader.uniforms.u_time.value += delta;
@@ -181,3 +179,5 @@ export const GradientWaveform = withReact(
       shader.uniforms.u_smoothFactor.value = props.smoothFactor;
     })
 );
+
+export default GradientWaveform;

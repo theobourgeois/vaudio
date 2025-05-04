@@ -3,23 +3,24 @@ import { createVisualizerObject } from '@vaudio/core';
 import * as THREE from 'three';
 import { withReact } from '@vaudio/react';
 
-export const Topography = withReact(
+const TopographyTunnel = withReact(
   createVisualizerObject()
     .defaults(() => ({
-      size: 50,
-      segments: 100,
+      size: 100,
+      segments: 50,
       baseColor: '#ffffff',
       waveDefinition: 1.5,
-      waveAmplitude: 1.3, // Reduced from 0.7
-      topoDefinition: 10,
-      bassSensitivity: 1, // Reduced from 0.01
-      midSensitivity: 0.0001, // Reduced from 0.001
-      trebleSensitivity: 1, // Reduced from 0.03
-      smoothingFactor: 0.5, // Reduced from 0.1 for smoother transitions
-      height: 2.0,
-      timeScale: 1 // Added to control overall animation speed
+      waveAmplitude: 0,
+      topoDefinition: 0.5,
+      bassSensitivity: 1,
+      midSensitivity: 0.01,
+      trebleSensitivity: 3,
+      smoothingFactor: 1,
+      height: 100.0,
+      timeScale: 1,
+      lineSpeed: 0.001
     }))
-    .geometry(({ props }) => {
+    .object(({ props }) => {
       const geometry = new THREE.PlaneGeometry(props.size, props.size, props.segments, props.segments);
       // Add some initial height variation
       const positions = geometry.attributes.position.array;
@@ -27,9 +28,6 @@ export const Topography = withReact(
         positions[i + 2] = Math.sin(positions[i] * 0.1) * Math.cos(positions[i + 1] * 0.1) * props.height;
       }
       geometry.computeVertexNormals();
-      return geometry;
-    })
-    .material(({ props }) => {
       const uniforms = {
         u_time: { value: 0 },
         u_bass: { value: 0 },
@@ -43,10 +41,11 @@ export const Topography = withReact(
         u_midSensitivity: { value: props.midSensitivity },
         u_trebleSensitivity: { value: props.trebleSensitivity },
         u_height: { value: props.height },
-        u_timeScale: { value: props.timeScale }
+        u_timeScale: { value: props.timeScale },
+        u_lineSpeed: { value: props.lineSpeed }
       };
 
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
           uniform float u_time;
@@ -114,12 +113,15 @@ export const Topography = withReact(
           uniform vec3 u_color;
           uniform float u_treble;
           uniform float u_trebleSensitivity;
+          uniform float u_time;
+          uniform float u_timeScale;
+          uniform float u_lineSpeed;
 
           varying vec3 vPosition;
 
           void main() {
-            // Create contour lines
-            float coord = vPosition.z * u_topoDefinition;
+            // Create contour lines with time-based movement
+            float coord = vPosition.z * u_topoDefinition + u_time * u_timeScale * u_lineSpeed;
             float line = abs(fract(coord - 0.1) - 0.5) / fwidth(coord);
             line /= 1.1;
             
@@ -132,10 +134,10 @@ export const Topography = withReact(
         transparent: true,
         side: THREE.DoubleSide
       });
+      return new THREE.Mesh(geometry, material);
     })
-    .render(({ mesh, audioData, props, delta }) => {
-      if (!(mesh.material instanceof THREE.ShaderMaterial)) return;
-      const shader = mesh.material as THREE.ShaderMaterial;
+    .render(({ object, audioData, props, delta }) => {
+      const shader = object.material;
 
       // Create smoothed values for audio data
       const smoothedBass = new SmoothedValue(props.smoothingFactor);
@@ -148,7 +150,7 @@ export const Topography = withReact(
       smoothedTreble.update(AudioUtils.getTrebleEnergy(audioData));
 
       // Update time and audio uniforms with smoothed values
-      shader.uniforms.u_time.value += delta * props.timeScale; // Slowed down time increment
+      shader.uniforms.u_time.value += delta * props.timeScale;
       shader.uniforms.u_bass.value = smoothedBass.get();
       shader.uniforms.u_mid.value = smoothedMid.get();
       shader.uniforms.u_treble.value = smoothedTreble.get();
@@ -163,5 +165,8 @@ export const Topography = withReact(
       shader.uniforms.u_trebleSensitivity.value = props.trebleSensitivity;
       shader.uniforms.u_height.value = props.height;
       shader.uniforms.u_timeScale.value = props.timeScale;
+      shader.uniforms.u_lineSpeed.value = props.lineSpeed;
     })
 );
+
+export default TopographyTunnel;

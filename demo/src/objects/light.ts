@@ -22,22 +22,22 @@ export const Light = withReact(
       color: '#ffffff',
       z: 5,
     }))
-    .createObject(({ props: layer }) => {
+    .object(({ props: layer }) => {
       const LightConstructor = THREE[layer.type || 'PointLight'];
       const light = new LightConstructor(layer.color, layer.intensity);
       return light;
     })
-    .render(({ id, mesh: light, props: layer, scene, idToMesh }) => {
-      if (light.type !== layer.type) {
+    .render(({ id, object: light, props, scene, idToObjectMap }) => {
+      if (light.type !== props.type) {
         if (light) scene.remove(light);
-        const LightConstructor = THREE[layer.type];
+        const LightConstructor = THREE[props.type];
         if (!LightConstructor) return;
-        const newLight = new LightConstructor(layer.color, layer.intensity);
+        const newLight = new LightConstructor(props.color, props.intensity);
         scene.add(newLight);
-        idToMesh.set(id, newLight);
+        idToObjectMap.set(id, newLight);
       }
 
-      light.color.set(layer.color);
-      light.intensity = layer.intensity;
+      light.color.set(props.color);
+      light.intensity = props.intensity;
     })
 );

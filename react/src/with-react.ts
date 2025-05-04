@@ -26,9 +26,11 @@ import { VisualizerObject, RenderFn } from '@vaudio/core';
 export function withReact<T extends VisualizerObject>(builderOutput: {
   getDefaults: () => T;
   getRenderFn: () => RenderFn<T>;
+  getCleanupFn: () => void;
 }) {
   return createVisualizerComponent(
     builderOutput.getDefaults(),
-    builderOutput.getRenderFn()
+    builderOutput.getRenderFn(),
+    builderOutput.getCleanupFn
   );
 }

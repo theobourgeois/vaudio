@@ -35,19 +35,19 @@ type PlanetProps = {
   zoomSpeed: number;
 };
 
-export const Planet = withReact(
+const Planet = withReact(
   createVisualizerObject()
     .defaults<PlanetProps>(() => ({
       // Base appearance
-      radius: 2.0,
-      detail: 100,
-      baseColor: '#005ce6',
-      secondaryColor: '#9cf56c',
-      atmosphereColor: '#a8cbff',
-      zoomSpeed: 1,
+      radius: 2,
+      detail: 50,
+      baseColor: '#0094ff',
+      secondaryColor: '#ffffff',
+      atmosphereColor: '#ffffff',
+      zoomSpeed: 2,
 
       // Pattern controls
-      patternScale: 0.7,
+      patternScale: 0.9,
       patternDensity: 8.0,
       reliefStrength: 0.1,
 
@@ -62,17 +62,13 @@ export const Planet = withReact(
 
       // Atmosphere
       atmosphereThickness: 2,
-      atmosphereGlow: 10,
+      atmosphereGlow: 0,
 
       // Time effect
       timeScale: 0.001,
     }))
-    .geometry(({ props }) => {
-      // Use IcosahedronGeometry for planets - provides good sphere approximation
-      // with detail parameter controlling resolution
-      return new THREE.IcosahedronGeometry(props.radius, props.detail);
-    })
-    .material(({ props }) => {
+    .object(({ props }) => {
+      const geometry = new THREE.IcosahedronGeometry(props.radius, props.detail);
       // Create uniforms for the shader
       const uniforms = {
         u_time: { value: 0 },
@@ -89,7 +85,7 @@ export const Planet = withReact(
         u_atmosphereGlow: { value: props.atmosphereGlow },
       };
 
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
           uniform float u_time;
@@ -351,13 +347,14 @@ export const Planet = withReact(
         `,
         side: THREE.FrontSide,
       });
+      return new THREE.Mesh(geometry, material);
     })
-    .render(({ mesh, audioData, props, delta }) => {
-      const material = mesh.material;
+    .render(({ object, audioData, props, delta }) => {
+      const material = object.material;
 
       // Initialize state variables if they don't exist
-      if (!(mesh as any).__state) {
-        (mesh as any).__state = {
+      if (!(object as any).__state) {
+        (object as any).__state = {
           bassSmoothed: new SmoothedValue(0.85),
           midSmoothed: new SmoothedValue(0.8),
           trebleSmoothed: new SmoothedValue(0.75),
@@ -365,7 +362,7 @@ export const Planet = withReact(
         };
       }
 
-      const state = (mesh as any).__state;
+      const state = (object as any).__state;
 
       // Extract audio data
       const bassEnergy = AudioUtils.getBassEnergy(audioData);
@@ -402,10 +399,12 @@ export const Planet = withReact(
       // Apply zoom with speed influenced by treble frequency
       const zoomSpeed = props.zoomSpeed * AudioUtils.getTrebleEnergy(audioData);
       const zoomFactor = 1.0 + zoomSpeed;
-      mesh.scale.set(zoomFactor, zoomFactor, zoomFactor);
+      object.scale.set(zoomFactor, zoomFactor, zoomFactor);
 
       // Apply rotation to the mesh
       const axis = new THREE.Vector3(...props.rotationAxis).normalize();
-      mesh.setRotationFromAxisAngle(axis, state.rotationAngle);
+      object.setRotationFromAxisAngle(axis, state.rotationAngle);
     })
 );
+
+export default Planet;

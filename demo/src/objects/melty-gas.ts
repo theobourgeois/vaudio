@@ -3,36 +3,38 @@ import { createVisualizerObject } from '@vaudio/core';
 import * as THREE from 'three';
 import { withReact } from '@vaudio/react';
 
-export const MeltyGas = withReact(
+const MeltingGas = withReact(
   createVisualizerObject()
     .defaults(() => ({
-      radius: 5.8,
-      segments: 100,
-      color: '#ffffff',
-      warpIntensity: 2.5, // Increased for more distortion
+      radius: 1,
+      segments: 10,
+      color: '#ff55ff',
+      warpIntensity: 1.5,
       pulseScale: 0.6,
-      gasSpeed: 0.1, // Slightly faster gas movement
+      gasSpeed: 0.2,
       delta: 0.03,
-      leakRate: 0.1, // Controls how fast gas "leaks"
-      turbulence: 4.0, // Controls turbulence in gas flow
-      particleDensity: 1.0, // Density of gas particles
+      leakRate: 0.1,
+      turbulence: 4.0,
+      particleDensity: 2.0,
     }))
-    .geometry(
-      ({ props: layer }) => new THREE.TorusKnotGeometry(layer.radius, 20)
-    )
-    .material(({ props: layer }) => {
+    .object(({ props }) => {
+      const geometry = new THREE.TorusKnotGeometry(
+        props.radius,
+        props.segments
+      );
+
       const uniforms = {
         u_time: { value: 0 },
-        u_color: { value: new THREE.Color(layer.color) },
-        u_intensity: { value: layer.warpIntensity },
+        u_color: { value: new THREE.Color(props.color) },
+        u_intensity: { value: props.warpIntensity },
         u_bass: { value: 0 },
-        u_speed: { value: layer.gasSpeed },
-        u_leakRate: { value: layer.leakRate },
-        u_turbulence: { value: layer.turbulence },
-        u_particleDensity: { value: layer.particleDensity },
+        u_speed: { value: props.gasSpeed },
+        u_leakRate: { value: props.leakRate },
+        u_turbulence: { value: props.turbulence },
+        u_particleDensity: { value: props.particleDensity },
       };
 
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
         uniform float u_time;
@@ -302,15 +304,18 @@ export const MeltyGas = withReact(
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       });
-    })
-    .render(({ mesh, audioData, props: layer }) => {
-      const shader = mesh.material as THREE.ShaderMaterial;
-      shader.uniforms.u_time.value += layer.delta;
-      shader.uniforms.u_bass.value = AudioUtils.getBassEnergy(audioData);
 
-      // Optional: You can animate some parameters here
-      // For example, make the leak rate pulse with the audio
+      return new THREE.Mesh(geometry, material);
+    })
+    .render(({ object, audioData, props }) => {
+      const shader = object.material;
+      shader.uniforms.u_time.value += props.delta;
+      shader.uniforms.u_bass.value = AudioUtils.getBassEnergy(audioData);
       shader.uniforms.u_leakRate.value =
-        layer.leakRate * (1.0 + AudioUtils.getBassEnergy(audioData) * 0.5);
+        props.leakRate * (1.0 + AudioUtils.getBassEnergy(audioData) * 0.5);
+
+      object.geometry = new THREE.TorusKnotGeometry(props.radius, props.segments);
     })
 );
+
+export default MeltingGas;

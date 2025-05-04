@@ -45,14 +45,17 @@ export const MyVisualizer = createVisualizerObject()
     scaleY: 1,
     scaleZ: 1,
   }))
-  .geometry(({ layer }) => new THREE.BoxGeometry(layer.size, layer.size, layer.size))
-  .material(({ layer }) => new THREE.MeshStandardMaterial({ color: layer.color }))
-  .start(({ mesh }) => {
-    mesh.castShadow = true;
+  .object(({ props }) => {
+    const geometry = new THREE.BoxGeometry(props.size, props.size, props.size);
+    const material = new THREE.MeshStandardMaterial({ color: props.color });
+    return new THREE.Mesh(geometry, material);
   })
-  .render(({ mesh, audioData }) => {
+  .start(({ object }) => {
+    object.castShadow = true;
+  })
+  .render(({ object, audioData }) => {
     const scale = 1 + audioData[0] / 256;
-    mesh.scale.set(scale, scale, scale);
+    object.scale.set(scale, scale, scale);
   });
 ```
 
@@ -130,7 +133,7 @@ Passed into all builder functions (`geometry`, `material`, `render`, etc.)
   audioData: Uint8Array;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
-  idToMesh: Map<ObjectId, THREE.Object3D>;
+  idToObjectMap: Map<ObjectId, THREE.Object3D>;
   delta: number;
 }
 ```

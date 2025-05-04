@@ -15,7 +15,7 @@ export class VisualizerStore {
   private camera: THREE.PerspectiveCamera | null = null;
   private renderer: THREE.WebGLRenderer;
   private renderFns: Record<ObjectId, { renderFn: RenderFn<VisualizerObject>, layer: VisualizerObject }> = {};
-  private idToMesh = new Map<ObjectId, THREE.Object3D>();
+  private idToObjectMap = new Map<ObjectId, THREE.Object3D>();
   private container: HTMLElement;
   private fps = 60;
   private rafId: number | null = null;
@@ -97,7 +97,7 @@ export class VisualizerStore {
           id,
           props: layer,
           delta: 1000 / this.fps,
-          idToMesh: this.idToMesh,
+          idToObjectMap: this.idToObjectMap,
           scene: this.scene,
           camera: this.camera!,
           audioData: this.dataArray,
@@ -116,19 +116,19 @@ export class VisualizerStore {
   }
 
   removeObject(id: ObjectId) {
-    const mesh = this.idToMesh.get(id);
-    if (mesh) {
-      if ((mesh as THREE.Mesh).geometry) {
-        (mesh as THREE.Mesh).geometry.dispose();
+    const object = this.idToObjectMap.get(id);
+    if (object) {
+      if ((object as THREE.Mesh).geometry) {
+        (object as THREE.Mesh).geometry.dispose();
       }
-      if ((mesh as THREE.Mesh).material) {
-        const materials = (Array.isArray((mesh as THREE.Mesh).material)
-          ? (mesh as THREE.Mesh).material
-          : [(mesh as THREE.Mesh).material]) as THREE.Material[];
+      if ((object as THREE.Mesh).material) {
+        const materials = (Array.isArray((object as THREE.Mesh).material)
+          ? (object as THREE.Mesh).material
+          : [(object as THREE.Mesh).material]) as THREE.Material[];
         materials.forEach((mat) => mat.dispose());
       }
-      this.scene.remove(mesh);
-      this.idToMesh.delete(id);
+      this.scene.remove(object);
+      this.idToObjectMap.delete(id);
     }
     delete this.renderFns[id];
   }
@@ -152,8 +152,8 @@ export class VisualizerStore {
     return this.renderer;
   }
 
-  getIdToMesh() {
-    return this.idToMesh;
+  getIdToObjectMap() {
+    return this.idToObjectMap;
   }
 
   renderOnce() {

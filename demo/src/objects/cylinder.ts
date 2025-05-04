@@ -11,22 +11,23 @@ export const Cylinder = withReact(
       color: '#ffffff',
       opacity: 1,
     }))
-    .geometry(
-      ({ props: layer }) =>
-        new THREE.CylinderGeometry(
-          layer.radiusTop,
-          layer.radiusBottom,
-          layer.height,
+    .object(
+      ({ props }) => {
+        const geometry = new THREE.CylinderGeometry(
+          props.radiusTop,
+          props.radiusBottom,
+          props.height,
           32
-        )
+        );
+        const material = new THREE.MeshStandardMaterial({
+          color: props.color,
+          opacity: props.opacity,
+          transparent: props.opacity < 1,
+        });
+        return new THREE.Mesh(geometry, material);
+      }
     )
-    .material(
-      ({ props: layer }) =>
-        new THREE.MeshStandardMaterial({
-          color: layer.color,
-          opacity: layer.opacity,
-          transparent: layer.opacity < 1,
-        })
-    )
-    .render()
+    .render({ object } => {
+  // render logic. object should have infered type Mesh with CylinderGeometry geometry and MeshStandardMaterial material
+})
 );

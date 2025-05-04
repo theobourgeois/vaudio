@@ -12,6 +12,7 @@
   "dependencies": {
     "@vaudio/react": "workspace:*",
     "@vaudio/core": "workspace:*",
+    "@vaudio/utils": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

@@ -3,7 +3,7 @@ import { createVisualizerObject } from '@vaudio/core';
 import * as THREE from 'three';
 import { withReact } from '@vaudio/react';
 
-export const CircularWaveform = withReact(
+const CircularWaveform = withReact(
   createVisualizerObject()
     .defaults(() => ({
       segments: 500,
@@ -18,7 +18,7 @@ export const CircularWaveform = withReact(
       rotationSpeed: 0.1,
       lineWidth: 0.1,
     }))
-    .geometry(({ props }) => {
+    .object(({ props }) => {
       const geometry = new THREE.BufferGeometry();
       const positions = [];
       const colors = [];
@@ -60,9 +60,6 @@ export const CircularWaveform = withReact(
       geometry.setAttribute('customColor', new THREE.Float32BufferAttribute(colors, 3));
       geometry.setIndex(indices);
 
-      return geometry;
-    })
-    .material(({ props }) => {
       const uniforms = {
         u_time: { value: 0 },
         u_bass: { value: 0 },
@@ -77,7 +74,7 @@ export const CircularWaveform = withReact(
         u_lineWidth: { value: props.lineWidth },
       };
 
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
           attribute vec3 customColor;
@@ -157,10 +154,11 @@ export const CircularWaveform = withReact(
         blending: THREE.AdditiveBlending,
         vertexColors: true,
       });
+
+      return new THREE.Mesh(geometry, material);
     })
-    .render(({ mesh, audioData, props, delta }) => {
-      if (!(mesh.material instanceof THREE.ShaderMaterial)) return;
-      const shader = mesh.material as THREE.ShaderMaterial;
+    .render(({ object, audioData, props, delta }) => {
+      const shader = object.material;
 
       // Update time uniform
       shader.uniforms.u_time.value += delta;
@@ -180,3 +178,5 @@ export const CircularWaveform = withReact(
       shader.uniforms.u_lineWidth.value = props.lineWidth;
     })
 );
+
+export default CircularWaveform;

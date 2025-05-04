@@ -3,18 +3,19 @@ import { withReact } from '@vaudio/react';
 import { AudioUtils, SmoothedValue } from '@vaudio/utils';
 import * as THREE from 'three';
 
-export const CircularBars = withReact(
+const CircularWaveform = withReact(
   createVisualizerObject()
     .defaults(() => ({
-      barCount: 380, // Number of bars around the circle
-      radius: 2, // Radius of the circle
-      minHeight: 0.2, // Minimum height of bars
-      maxHeight: 2.5, // Maximum height of bars
-      barWidth: 0.1, // Width of each bar
-      color: '#00ffff', // Primary color (cyan)
-      accentColor: '#ff00ff', // Secondary color (magenta)
-      glowIntensity: 1.8, // Intensity of the glow effect
-      rotationSpeed: 0.1, // Speed of rotation
+      barCount: 200,
+      radius: 3,
+      minHeight: 0.1,
+      maxHeight: 2,
+      barWidth: 0.1,
+      color: '#00ffff',
+      accentColor: '#ff00ff',
+      glowIntensity: 1.3,
+      rotationSpeed: 0.7,
+      y: -1,
     }))
     .geometry(() => {
       // Create an empty geometry to be filled with bars
@@ -29,8 +30,6 @@ export const CircularBars = withReact(
       });
     })
     .start(({ mesh, props }) => {
-      if (!(mesh.material instanceof THREE.MeshBasicMaterial)) return;
-
       // Create bars around a circle
       const { barCount, radius, barWidth } = props;
       const positions = [];
@@ -175,3 +174,5 @@ export const CircularBars = withReact(
       );
     })
 );
+
+export default CircularWaveform;

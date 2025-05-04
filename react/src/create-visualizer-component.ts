@@ -29,7 +29,7 @@ type VisualizerComponentProps<T> = {
 export function createVisualizerComponent<T extends VisualizerObject>(
   defaults: T,
   renderFn: RenderFn<T>,
-  cleanupFn?: (id: ObjectId) => void
+  cleanupFn?: () => void
 ) {
   return function Component(userProps: VisualizerComponentProps<T>) {
     const { triggerRender, removeObject } = useVisualizer();
@@ -69,7 +69,7 @@ export function createVisualizerComponent<T extends VisualizerObject>(
       return () => {
         if (cleanupFn) {
           // Execute custom cleanup if provided.
-          cleanupFn(instanceId!);
+          cleanupFn();
         }
         // Remove the object using its stable instance ID.
         removeObject(instanceId!);

@@ -3,22 +3,20 @@ import { createVisualizerObject } from '@vaudio/core';
 import * as THREE from 'three';
 import { withReact } from '@vaudio/react';
 
-export const CircleWaveform = withReact(
+const Rainbow3DDisc = withReact(
   createVisualizerObject()
     .defaults(() => ({
       color: '#800868',
       speed: 0.001,
-      intensity: 0.05,
+      intensity: 0.005,
       glow: 0.0,
       segments: 100,
-      radius: 6.0,
+      radius: 1.0,
       distortion: 4.5,
       colorSpeed: 0.00005,
     }))
-    .geometry(({ props }) => {
-      return new THREE.SphereGeometry(props.radius, props.segments);
-    })
-    .material(({ props }) => {
+    .object(({ props }) => {
+      const geometry = new THREE.SphereGeometry(props.radius, props.segments);
       const uniforms = {
         u_time: { value: 0 },
         u_color: { value: new THREE.Color(props.color) },
@@ -33,7 +31,7 @@ export const CircleWaveform = withReact(
         u_treble: { value: 0 },
       };
 
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
           uniform float u_time;
@@ -176,10 +174,10 @@ export const CircleWaveform = withReact(
         transparent: true,
         blending: THREE.AdditiveBlending,
       });
+      return new THREE.Mesh(geometry, material);
     })
-    .render(({ mesh, audioData, props, delta }) => {
-      if (!(mesh.material instanceof THREE.ShaderMaterial)) return;
-      const shader = mesh.material as THREE.ShaderMaterial;
+    .render(({ object, audioData, props, delta }) => {
+      const shader = object.material;
 
       // Update time uniform
       shader.uniforms.u_time.value += delta;
@@ -197,5 +195,9 @@ export const CircleWaveform = withReact(
       shader.uniforms.u_radius.value = props.radius;
       shader.uniforms.u_distortion.value = props.distortion;
       shader.uniforms.u_colorSpeed.value = props.colorSpeed;
+
+      object.geometry = new THREE.SphereGeometry(props.radius, props.segments);
     })
 );
+
+export default Rainbow3DDisc;

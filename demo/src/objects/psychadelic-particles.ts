@@ -3,23 +3,21 @@ import { createVisualizerObject } from '@vaudio/core';
 import * as THREE from 'three';
 import { withReact } from '@vaudio/react';
 
-export const PsychedelicTunnel = withReact(
+const MovingGlass = withReact(
   createVisualizerObject()
     .defaults(() => ({
       color: '#00ff00',
       intensity: 1.0,
-      speed: 0.05, // Reduced default speed
+      speed: 0.05,
       distortion: 5.0,
       glow: 1.0,
       patternScale: 1.0,
-      tunnelDepth: 10.0, // Reduced depth for better perspective
+      tunnelDepth: 10.0,
       size: 10,
       segments: 10,
     }))
-    .geometry(({ props }) => {
-      return new THREE.TorusKnotGeometry(props.size, props.size, props.segments, props.segments);
-    })
-    .material(({ props }) => {
+    .object(({ props }) => {
+      const geometry = new THREE.TorusKnotGeometry(props.size, props.size, props.segments, props.segments);
       const uniforms = {
         u_time: { value: 0 },
         u_color: { value: new THREE.Color(props.color) },
@@ -37,7 +35,7 @@ export const PsychedelicTunnel = withReact(
         u_smoothTreble: { value: 0 },
       };
 
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
           uniform float u_time;
@@ -187,10 +185,11 @@ export const PsychedelicTunnel = withReact(
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       });
+
+      return new THREE.Mesh(geometry, material);
     })
-    .render(({ mesh, audioData, props, delta }) => {
-      if (!(mesh.material instanceof THREE.ShaderMaterial)) return;
-      const shader = mesh.material as THREE.ShaderMaterial;
+    .render(({ object, audioData, props, delta }) => {
+      const shader = object.material;
 
       // Update time uniform with speed control
       shader.uniforms.u_time.value += delta * props.speed;
@@ -214,3 +213,5 @@ export const PsychedelicTunnel = withReact(
       shader.uniforms.u_tunnelDepth.value = props.tunnelDepth;
     })
 );
+
+export default MovingGlass;

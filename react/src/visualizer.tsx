@@ -133,7 +133,7 @@ export const Visualizer = forwardRef<HTMLAudioElement, VisualizerProps>(
         removeObject,
         triggerRender,
         storeRef,
-        audioContextRef: { current: null }, // now unused
+        audioContextRef: { current: null },
         analyserRef: { current: null },
         dataArrayRef: { current: null },
         cameraRef: { current: storeRef.current?.getCamera() ?? null },
