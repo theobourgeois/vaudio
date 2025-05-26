@@ -58,7 +58,7 @@ export function createVisualizerComponent<T extends VisualizerObject>(
         console.error(`Visualizer component "${instanceId || 'Unnamed'}" must be rendered inside a Visualizer component.`);
         return;
       }
-      triggerRender(instanceId!, renderFn, combinedProps as VisualizerObject as T);
+      triggerRender(instanceId!, renderFn, combinedProps as VisualizerObject as T, cleanupFn);
     }, [instanceId, combinedProps, triggerRender, renderFn]); // Deep comparison on combinedProps
 
     /**
@@ -67,10 +67,6 @@ export function createVisualizerComponent<T extends VisualizerObject>(
      */
     useEffect(() => {
       return () => {
-        if (cleanupFn) {
-          // Execute custom cleanup if provided.
-          cleanupFn();
-        }
         // Remove the object using its stable instance ID.
         removeObject(instanceId!);
       };

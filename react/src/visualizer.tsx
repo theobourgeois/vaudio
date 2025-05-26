@@ -15,8 +15,8 @@ import {
   TriggerRenderFn,
   VisualizerObject,
 } from '@vaudio/core';
-import { debounce } from './debounce';
 import React from 'react';
+import { PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 
 type CameraOptions = {
   fov?: number;
@@ -36,7 +36,21 @@ export type VisualizerProps = {
   audioOptions?: React.AudioHTMLAttributes<HTMLAudioElement>;
 };
 
-export const Visualizer = forwardRef<HTMLAudioElement, VisualizerProps>(
+export type VisualizerRef = {
+  audioElement: HTMLAudioElement;
+  containerElement: HTMLDivElement;
+  store: () => VisualizerStore | null;
+  triggerRender: TriggerRenderFn;
+  removeObject: (id: ObjectId) => void;
+  camera: PerspectiveCamera | null;
+  scene: Scene | null;
+  renderer: WebGLRenderer | null;
+  audioContext: AudioContext | null;
+  analyser: AnalyserNode | null;
+  dataArray: Uint8Array | null;
+};
+
+export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
   function Visualizer(props, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -46,10 +60,23 @@ export const Visualizer = forwardRef<HTMLAudioElement, VisualizerProps>(
         id: ObjectId;
         renderFn: RenderFn<VisualizerObject>;
         layer: VisualizerObject;
+        cleanupFn?: () => void;
       }>
     >([]);
 
-    useImperativeHandle(ref, () => audioRef.current!);
+    useImperativeHandle(ref, () => ({
+      audioElement: audioRef.current!,
+      containerElement: containerRef.current!,
+      store: () => storeRef.current!,
+      triggerRender: triggerRender,
+      removeObject: removeObject,
+      camera: storeRef.current?.getCamera() ?? null,
+      scene: storeRef.current?.getScene() ?? null,
+      renderer: storeRef.current?.getRenderer() ?? null,
+      audioContext: storeRef.current?.getAudioContext() ?? null,
+      analyser: storeRef.current?.getAnalyser() ?? null,
+      dataArray: storeRef.current?.getDataArray() ?? null,
+    }));
 
     useEffect(() => {
       if (!containerRef.current || !audioRef.current || storeRef.current)
@@ -58,8 +85,13 @@ export const Visualizer = forwardRef<HTMLAudioElement, VisualizerProps>(
       const store = new VisualizerStore(containerRef.current);
       storeRef.current = store;
 
-      for (const { id, renderFn, layer } of pendingRenderFns.current) {
-        store.registerRenderFn(id, renderFn, layer);
+      for (const {
+        id,
+        renderFn,
+        layer,
+        cleanupFn,
+      } of pendingRenderFns.current) {
+        store.registerRenderFn(id, renderFn, layer, cleanupFn);
       }
       pendingRenderFns.current = [];
 
@@ -94,30 +126,48 @@ export const Visualizer = forwardRef<HTMLAudioElement, VisualizerProps>(
     useEffect(() => {
       if (!containerRef.current || !storeRef.current) return;
 
-      const handleResize = debounce(() => {
-        const width = containerRef.current!.clientWidth;
-        const height = containerRef.current!.clientHeight;
-        storeRef.current!.resize(width, height);
-      }, 100);
+      let timeoutId: NodeJS.Timeout;
+      const handleResize = () => {
+        if (!containerRef.current || !storeRef.current) return;
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          const width = containerRef.current!.clientWidth;
+          const height = containerRef.current!.clientHeight;
+          storeRef.current!.resize(width, height);
+        }, 100);
+      };
 
-      const observer = new ResizeObserver(handleResize);
+      const observer = new ResizeObserver((entries) => {
+        // Only trigger resize if the container's dimensions actually changed
+        const entry = entries[0];
+        if (entry && entry.contentRect) {
+          handleResize();
+        }
+      });
+
       observer.observe(containerRef.current);
 
-      return () => observer.disconnect();
+      return () => {
+        observer.disconnect();
+        clearTimeout(timeoutId);
+      };
     }, []);
+
     const triggerRender = useCallback<TriggerRenderFn>(
-      (id, renderFn, layer) => {
+      (id, renderFn, layer, cleanupFn) => {
         if (storeRef.current) {
           storeRef.current.registerRenderFn(
             id,
             renderFn as RenderFn<VisualizerObject>,
-            layer
+            layer,
+            cleanupFn
           );
         } else {
           pendingRenderFns.current.push({
             id,
             renderFn: renderFn as RenderFn<VisualizerObject>,
             layer,
+            cleanupFn,
           });
         }
       },

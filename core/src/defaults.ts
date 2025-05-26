@@ -18,5 +18,8 @@ export function defaultVisualizerObject(): VisualizerObject {
   return {
     ...defaultTransform(),
     domain: 'frequency',
+    startTime: 0,
+    endTime: null,
+    hidden: false,
   }
 }
