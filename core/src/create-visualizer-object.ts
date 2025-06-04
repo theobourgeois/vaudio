@@ -15,19 +15,8 @@ type MaybePromise<T> = T | Promise<T>;
  * @template TObj - Type of the Three.js object being created
  */
 type ReactiveConfig<TFullConfig extends VisualizerObject, TObj extends THREE.Object3D> = {
-  /** Whether to rebuild the object when the reactive property changes */
-  rebuild?: boolean;
   /** Function to be called when the reactive properties change */
   customUpdate?: (args: RenderArgs<TFullConfig> & { object: TObj }) => void;
-}
-
-function createDeepStub(path = ''): any {
-  const fn = () => createDeepStub(`${path}()`);
-  return new Proxy(fn, {
-    get: (_, key) => createDeepStub(`${path}.${String(key)}`),
-    apply: () => undefined,
-    set: () => true,
-  });
 }
 
 
@@ -49,13 +38,11 @@ export interface RenderObjectConfigState<
   objectFn?: (args: RenderArgs<TFullConfig>) => MaybePromise<TObj>;
   /** Function that handles rendering of the object */
   renderFn?: (args: RenderArgs<TFullConfig> & { object: TObj }) => void;
-  /** Function called when the object is first created */
-  startFn?: (args: RenderArgs<TFullConfig> & { object: TObj }) => void;
   /** Function called when the object needs to be cleaned up */
   cleanupFn?: (args: RenderArgs<TFullConfig> & { object: TObj }) => void;
   /** List of properties that should trigger a re-render */
   reactiveProps?: {
-    props: (keyof TFullConfig)[];
+    props: (keyof TFullConfig)[] | null;
     config?: ReactiveConfig<TFullConfig, TObj>;
   }[];
 }
@@ -122,19 +109,6 @@ export class VisualizerObjectBuilder<
   }
 
   /**
-   * Sets the reactive properties that should trigger a re-render
-   * @param props - List of properties that should trigger a re-render
-   * @returns The current VisualizerObjectBuilder instance
-   */
-  reactive(
-    props: (keyof TFullConfig)[],
-    config?: ReactiveConfig<TFullConfig, TObj>
-  ): VisualizerObjectBuilder<TDefaults, TFullConfig, TObj> {
-    this.config.reactiveProps = [...(this.config.reactiveProps || []), { props, config }];
-    return this;
-  }
-
-  /**
    * Sets the update function that is called when the props change.
    * @param fn - Function to be called when the props change.
    * @returns The current VisualizerObjectBuilder instance
@@ -143,86 +117,9 @@ export class VisualizerObjectBuilder<
     fn: (args: RenderArgs<TFullConfig> & { object: TObj }) => void,
     explicitProps?: (keyof TFullConfig)[]
   ): VisualizerObjectBuilder<TDefaults, TFullConfig, TObj> {
-    // if caller passed explicit props, just wire them up
-    if (explicitProps) {
-      this.config.reactiveProps = [
-        ...(this.config.reactiveProps || []),
-        { props: explicitProps, config: { customUpdate: fn } },
-      ]
-      return this
-    }
-
-    const accessedProps = new Set<keyof TFullConfig>()
-
-    // proxy logic
-    const createDeepProxy = (obj: any, path: string[] = []): any =>
-      new Proxy(obj, {
-        get(target, prop: string) {
-          accessedProps.add(prop as keyof TFullConfig)
-          const v = target[prop]
-          return (v && typeof v === 'object')
-            ? createDeepProxy(v, path.concat(prop))
-            : v
-        },
-      })
-
-    const proxyProps = createDeepProxy({} as TFullConfig)
-
-    // stub out object so forEach actually runs once
-    let dummyObj: any = createDeepStub('object')
-    const dummyChild: any = createDeepStub('object.children[0]')
-    const dummyChildMaterial: any = createDeepStub('object.children[0].material')
-    const dummyChildGeometry: any = createDeepStub('object.children[0].geometry')
-    const dummyMaterial: any = createDeepStub('object.children[0].material')
-    const dummyGeometry: any = createDeepStub('object.children[0].geometry')
-    dummyChild.material = dummyChildMaterial
-    dummyChild.geometry = dummyChildGeometry
-    dummyObj.children = [dummyChild]
-    dummyChild.material = dummyMaterial
-    dummyChild.geometry = dummyGeometry
-
-    dummyObj = {
-      ...dummyObj,
-      children: [dummyChild],
-      material: dummyMaterial,
-      geometry: dummyGeometry,
-    }
-
-    try {
-      fn({
-        props: proxyProps,
-        object: dummyObj as TObj,
-        audioData: createDeepStub('audioData'),
-        scene: createDeepStub('scene'),
-        idToObjectMap: new Map(),
-        id: '__dryrun__',
-        delta: 0,
-        camera: createDeepStub('camera'),
-        currentTime: 0,
-        renderer: createDeepStub('renderer'),
-      })
-    } catch {
-      // swallow errors
-    }
-
-    // fallback: scan fn.toString() for any props.foo occurrences
-    const source = fn.toString()
-    const propRegex = /props\.(\w+)/g
-    let m: RegExpExecArray | null
-    while ((m = propRegex.exec(source))) {
-      accessedProps.add(m[1] as keyof TFullConfig)
-    }
-
-    if (accessedProps.size === 0) {
-      console.warn('[vaudio] No props accessed in update fn; you may need explicit reactive list')
-    }
-
     this.config.reactiveProps = [
       ...(this.config.reactiveProps || []),
-      {
-        props: Array.from(accessedProps),
-        config: { customUpdate: fn },
-      },
+      { props: explicitProps ?? null, config: { customUpdate: fn } },
     ]
     return this
   }
@@ -244,18 +141,6 @@ export class VisualizerObjectBuilder<
       } as any;
 
     return new VisualizerObjectBuilder(newConfig);
-  }
-
-  /**
-   * Sets the start function that is called when the object is first created
-   * @param fn - Function to be called on object creation
-   * @returns The current VisualizerObjectBuilder instance
-   */
-  start(
-    fn: (args: RenderArgs<TFullConfig> & { object: TObj }) => void
-  ): VisualizerObjectBuilder<TDefaults, TFullConfig, TObj> {
-    this.config.startFn = fn;
-    return this;
   }
 
   /**
@@ -299,16 +184,18 @@ export class VisualizerObjectBuilder<
         if ('receiveShadow' in newObj && typeof newObj.receiveShadow === 'boolean')
           newObj.receiveShadow = true;
 
-        for (const reactiveConfig of this.config.reactiveProps || []) {
-          for (const prop of reactiveConfig.props) {
-            if (prop in args.props) {
-              newObj.userData[prop as string] = args.props[prop];
-            }
-          }
+        // set user data on the object
+        for (const prop of Object.keys(args.props)) {
+          newObj.userData[prop as string] = args.props[prop as keyof TFullConfig];
         }
 
-        if (this.config.startFn) {
-          this.config.startFn({ ...args, object: newObj });
+        // render all update functions on first render
+        if (this.config.reactiveProps) {
+          for (const reactiveConfig of this.config.reactiveProps || []) {
+            if (reactiveConfig.config?.customUpdate) {
+              reactiveConfig.config.customUpdate({ ...args, object: newObj });
+            }
+          }
         }
         return newObj;
       }
@@ -321,33 +208,19 @@ export class VisualizerObjectBuilder<
       // check the reactive props. If they have changed, update the object
       if (this.config.reactiveProps) {
         for (const reactiveConfig of this.config.reactiveProps) {
-          for (const prop of reactiveConfig.props) {
-            if (obj.userData[prop as string] !== args.props[prop]) {
-              if (reactiveConfig.config?.customUpdate) {
-                reactiveConfig.config.customUpdate({ ...args, object: obj });
-              }
-
-              if (!reactiveConfig.config?.rebuild) {
-                this.config.startFn?.({ ...args, object: obj });
-                obj.userData[prop as string] = args.props[prop];
-              }
-
-              if (reactiveConfig.config?.rebuild) {
-                if (this.config.cleanupFn) {
-                  this.config.cleanupFn({ ...args, object: obj });
+          // if the props are null update the object on every frame
+          if (reactiveConfig.props === null) {
+            if (reactiveConfig.config?.customUpdate) {
+              reactiveConfig.config.customUpdate({ ...args, object: obj });
+            }
+          } else {
+            // if the props are not null, update the object only if the props have changed
+            for (const prop of reactiveConfig.props || []) {
+              if (obj.userData[prop as string] !== args.props[prop]) {
+                if (reactiveConfig.config?.customUpdate) {
+                  reactiveConfig.config.customUpdate({ ...args, object: obj });
+                  obj.userData[prop as string] = args.props[prop as keyof TFullConfig];
                 }
-                obj.removeFromParent();
-                if ('geometry' in obj && 'material' in obj) {
-                  (obj.geometry as THREE.BufferGeometry).dispose();
-                  (obj.material as THREE.Material).dispose();
-                }
-                if ('dispose' in obj) {
-                  (obj as any).dispose();
-                }
-                args.scene.remove(obj);
-
-                args.idToObjectMap.delete(args.id);
-                obj = await updateObject();
               }
             }
           }

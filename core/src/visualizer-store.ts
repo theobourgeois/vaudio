@@ -102,6 +102,32 @@ export class VisualizerStore {
     this.fps = options.fps ?? 60;
   }
 
+  setCameraOptions(options: CameraOptions) {
+    const {
+      x = 0,
+      y = 0,
+      z = 5,
+      fov = 75,
+      near = 0.1,
+      far = 1000,
+    } = options;
+    if (this.camera) {
+      this.camera.position.set(x, y, z);
+      this.camera.fov = fov;
+      this.camera.near = near;
+      this.camera.far = far;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  setBackgroundColor(color: string) {
+    this.renderer.setClearColor(new THREE.Color(color));
+  }
+
+  setFps(fps: number) {
+    this.fps = fps;
+  }
+
   /**
    * Resizes the visualizer to match the specified dimensions
    * @param width - New width of the visualizer
@@ -194,7 +220,7 @@ export class VisualizerStore {
           renderFn({
             id,
             props: layer,
-            delta: deltaTime, // Use actual delta time instead of fixed value
+            delta: deltaTime / 1000, // Use actual delta time instead of fixed value
             idToObjectMap: this.idToObjectMap,
             scene: this.scene,
             camera: this.camera!,

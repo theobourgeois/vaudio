@@ -120,7 +120,31 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
         cameraOptions: props.cameraOptions,
         fps: props.fps,
       });
-    }, [props.backgroundColor, props.cameraOptions, props.fps]);
+    }, []);
+
+    useEffect(() => {
+      const store = storeRef.current;
+      if (!store) return;
+      if (props.backgroundColor) {
+        store.setBackgroundColor(props.backgroundColor);
+      }
+    }, [props.backgroundColor]);
+
+    useEffect(() => {
+      const store = storeRef.current;
+      if (!store) return;
+      if (props.cameraOptions) {
+        store.setCameraOptions(props.cameraOptions);
+      }
+    }, [props.cameraOptions]);
+
+    useEffect(() => {
+      const store = storeRef.current;
+      if (!store) return;
+      if (props.fps) {
+        store.setFps(props.fps);
+      }
+    }, [props.fps]);
 
     // Resize handling
     useEffect(() => {
