@@ -14,11 +14,40 @@ type MaybePromise<T> = T | Promise<T>;
  * @template TFullConfig - Type of full configuration including defaults
  * @template TObj - Type of the Three.js object being created
  */
-type ReactiveConfig<TFullConfig extends VisualizerObject, TObj extends THREE.Object3D> = {
+type ReactiveConfig<
+  TFullConfig extends VisualizerObject,
+  TObj extends THREE.Object3D
+> = {
   /** Function to be called when the reactive properties change */
   customUpdate?: (args: RenderArgs<TFullConfig> & { object: TObj }) => void;
-}
+};
 
+function injectOpacity(material: THREE.ShaderMaterial) {
+  if (material.userData.opacityPatched) return; // only once
+
+  // add uniform
+  material.uniforms.u_opacity ??= { value: 1.0 };
+  material.transparent = true;
+
+  material.onBeforeCompile = (shader) => {
+    // hand the uniform to the compiled program
+    shader.uniforms.u_opacity = material.uniforms.u_opacity;
+
+    // insert the uniform definition at the top
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'void main() {',
+      'uniform float u_opacity;\nvoid main() {'
+    );
+
+    // multiply alpha just before final write
+    shader.fragmentShader = shader.fragmentShader.replace(
+      /gl_FragColor\s*=\s*vec4\((.*)\);/,
+      'gl_FragColor = vec4($1 * u_opacity);'
+    );
+  };
+
+  material.userData.opacityPatched = true;
+}
 
 /**
  * Configuration state for a render object, containing all the necessary functions
@@ -120,10 +149,9 @@ export class VisualizerObjectBuilder<
     this.config.reactiveProps = [
       ...(this.config.reactiveProps || []),
       { props: explicitProps ?? null, config: { customUpdate: fn } },
-    ]
-    return this
+    ];
+    return this;
   }
-
 
   /**
    * Sets the object creation function
@@ -169,24 +197,77 @@ export class VisualizerObjectBuilder<
     let lastObject: TObj | undefined;
     let lastArgs: RenderArgs<TFullConfig> | undefined;
 
+    // Add reactive config for transform and opacity properties
+    this.update(
+      ({ object, props }) => {
+        object.position.set(props.x, props.y, props.z);
+        object.scale.set(props.scaleX, props.scaleY, props.scaleZ);
+        object.rotation.set(props.rotationX, props.rotationY, props.rotationZ);
+
+        // Handle opacity recursively for all objects and materials
+        const setOpacity = (object: THREE.Object3D, value: number) => {
+          if ('material' in object) {
+            const mesh = object as THREE.Mesh;
+            const apply = (mat: THREE.Material) => {
+              if (mat instanceof THREE.ShaderMaterial) {
+                injectOpacity(mat as THREE.ShaderMaterial);
+                (mat as THREE.ShaderMaterial).uniforms.u_opacity.value = value;
+              } else {
+                mat.opacity = value;
+                mat.transparent = value < 1;
+              }
+            };
+            Array.isArray(mesh.material)
+              ? mesh.material.forEach(apply)
+              : apply(mesh.material);
+          }
+          object.children.forEach((child) => setOpacity(child, value));
+        };
+        setOpacity(object, props.opacity);
+      },
+      [
+        'x',
+        'y',
+        'z',
+        'scaleX',
+        'scaleY',
+        'scaleZ',
+        'rotationX',
+        'rotationY',
+        'rotationZ',
+        'opacity',
+      ]
+    );
+
     const renderFn: RenderFn<TFullConfig> = async (args) => {
       let obj = args.idToObjectMap.get(args.id) as TObj | undefined;
 
       const updateObject = async () => {
         const newObj = await awaitMaybe(this.config.objectFn?.(args));
+
         if (!newObj) {
           throw new Error('objectFn must return an object');
+        }
+        if (
+          newObj instanceof THREE.Mesh &&
+          newObj.material instanceof THREE.ShaderMaterial
+        ) {
+          injectOpacity(newObj.material);
         }
         args.scene.add(newObj);
         args.idToObjectMap.set(args.id, newObj);
         if ('castShadow' in newObj && typeof newObj.castShadow === 'boolean')
           newObj.castShadow = true;
-        if ('receiveShadow' in newObj && typeof newObj.receiveShadow === 'boolean')
+        if (
+          'receiveShadow' in newObj &&
+          typeof newObj.receiveShadow === 'boolean'
+        )
           newObj.receiveShadow = true;
 
         // set user data on the object
         for (const prop of Object.keys(args.props)) {
-          newObj.userData[prop as string] = args.props[prop as keyof TFullConfig];
+          newObj.userData[prop as string] =
+            args.props[prop as keyof TFullConfig];
         }
 
         // render all update functions on first render
@@ -198,7 +279,7 @@ export class VisualizerObjectBuilder<
           }
         }
         return newObj;
-      }
+      };
 
       if (!obj) {
         const newObj = await updateObject();
@@ -207,6 +288,7 @@ export class VisualizerObjectBuilder<
 
       // check the reactive props. If they have changed, update the object
       if (this.config.reactiveProps) {
+        const staleUserData = { ...obj.userData };
         for (const reactiveConfig of this.config.reactiveProps) {
           // if the props are null update the object on every frame
           if (reactiveConfig.props === null) {
@@ -216,24 +298,17 @@ export class VisualizerObjectBuilder<
           } else {
             // if the props are not null, update the object only if the props have changed
             for (const prop of reactiveConfig.props || []) {
-              if (obj.userData[prop as string] !== args.props[prop]) {
+              if (staleUserData[prop as string] !== args.props[prop]) {
                 if (reactiveConfig.config?.customUpdate) {
                   reactiveConfig.config.customUpdate({ ...args, object: obj });
-                  obj.userData[prop as string] = args.props[prop as keyof TFullConfig];
+                  obj.userData[prop as string] =
+                    args.props[prop as keyof TFullConfig];
                 }
               }
             }
           }
         }
       }
-
-      obj.position.set(args.props.x, args.props.y, args.props.z);
-      obj.scale.set(args.props.scaleX, args.props.scaleY, args.props.scaleZ);
-      obj.rotation.set(
-        args.props.rotationX,
-        args.props.rotationY,
-        args.props.rotationZ
-      );
 
       this.config.renderFn?.({ ...args, object: obj });
       lastObject = obj;

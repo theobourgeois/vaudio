@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ObjectId, RenderFn, VisualizerObject } from './types';
+import { awaitMaybe } from './await-maybe';
 
 /**
  * Options for configuring the camera in the visualizer
@@ -55,6 +56,8 @@ export class VisualizerStore {
   private rafId: number | null = null;
   /** Current time of the audio playback */
   private currentTime = 0;
+  /** Whether to disable resizing */
+  private isResizingDisabled = false;
   /** The audio element used for playback */
   private audioEl: HTMLAudioElement | null = null;
 
@@ -103,14 +106,7 @@ export class VisualizerStore {
   }
 
   setCameraOptions(options: CameraOptions) {
-    const {
-      x = 0,
-      y = 0,
-      z = 5,
-      fov = 75,
-      near = 0.1,
-      far = 1000,
-    } = options;
+    const { x = 0, y = 0, z = 5, fov = 75, near = 0.1, far = 1000 } = options;
     if (this.camera) {
       this.camera.position.set(x, y, z);
       this.camera.fov = fov;
@@ -118,6 +114,10 @@ export class VisualizerStore {
       this.camera.far = far;
       this.camera.updateProjectionMatrix();
     }
+  }
+
+  setResizingDisabled(disabled: boolean) {
+    this.isResizingDisabled = disabled;
   }
 
   setBackgroundColor(color: string) {
@@ -134,7 +134,7 @@ export class VisualizerStore {
    * @param height - New height of the visualizer
    */
   resize(width: number, height: number) {
-    if (!this.camera) return;
+    if (!this.camera || this.isResizingDisabled) return;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -180,7 +180,7 @@ export class VisualizerStore {
   animate = () => {
     let lastFrameTime = performance.now();
 
-    const loop = () => {
+    const loop = async () => {
       const currentTime = performance.now();
       const frameInterval = 1000 / this.fps; // Time between frames in ms
       const deltaTime = currentTime - lastFrameTime;
@@ -217,17 +217,19 @@ export class VisualizerStore {
             }
           }
 
-          renderFn({
-            id,
-            props: layer,
-            delta: deltaTime / 1000, // Use actual delta time instead of fixed value
-            idToObjectMap: this.idToObjectMap,
-            scene: this.scene,
-            camera: this.camera!,
-            audioData: this.dataArray,
-            currentTime: this.currentTime,
-            renderer: this.renderer,
-          });
+          await awaitMaybe(
+            renderFn({
+              id,
+              props: layer,
+              delta: deltaTime / 1000, // Use actual delta time instead of fixed value
+              idToObjectMap: this.idToObjectMap,
+              scene: this.scene,
+              camera: this.camera!,
+              audioData: this.dataArray,
+              currentTime: this.currentTime,
+              renderer: this.renderer,
+            })
+          );
         }
 
         this.renderer.render(this.scene, this.camera!);

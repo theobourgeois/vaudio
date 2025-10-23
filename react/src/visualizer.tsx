@@ -79,6 +79,9 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
     }));
 
     useEffect(() => {
+      /**
+       * Initialize the store
+       */
       if (!containerRef.current || !audioRef.current || storeRef.current)
         return;
 

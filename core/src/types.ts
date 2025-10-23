@@ -45,6 +45,8 @@ export type VisualizerObject = {
   endTime: number | null;
   /** Whether the object is hidden */
   hidden: boolean;
+  /** Opacity of the object */
+  opacity: number;
 } & Transform;
 
 /**

@@ -22,6 +22,32 @@ function getAverage(audioData: Uint8Array): number {
 }
 
 /**
+ * Calculates the spectrum of the audio data.
+ * 
+ * @param audioData - The audio data array (Uint8Array) to analyze
+ * @param size - The size of the spectrum
+ * @returns An array of numbers between 0 and 1 representing the normalized spectrum
+ */
+function getSpectrum(audioData: Uint8Array, size: number): number[] {
+  const spectrum = new Array(size).fill(0);
+  const chunkSize = Math.ceil(audioData.length / size);
+
+  for (let i = 0; i < size || i < audioData.length; i++) {
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize, audioData.length);
+    let sum = 0;
+
+    for (let j = start; j < end; j++) {
+      sum += audioData[j];
+    }
+
+    spectrum[i] = (sum / (end - start)) / 255;
+  }
+
+  return spectrum;
+}
+
+/**
  * Calculates the peak value in the audio data, normalized to a 0-1 range.
  * 
  * @param audioData - The audio data array (Uint8Array) to analyze
@@ -160,4 +186,5 @@ export const AudioUtils = {
   getDynamicRange,
   getMidEnergy,
   getTrebleEnergy,
+  getSpectrum,
 };

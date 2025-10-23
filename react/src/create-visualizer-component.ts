@@ -40,14 +40,12 @@ export function createVisualizerComponent<T extends VisualizerObject>(
       instanceIdRef.current = THREE.MathUtils.generateUUID();
     }
 
-    const instanceId = userProps.id !== undefined ? userProps.id : instanceIdRef.current;
+    const instanceId =
+      userProps.id !== undefined ? userProps.id : instanceIdRef.current;
 
-    const combinedProps: T = useMemo(
-      () => {
-        return applyDefaults(defaults, userProps as unknown as T);
-      },
-      [userProps]
-    );
+    const combinedProps: T = useMemo(() => {
+      return applyDefaults(defaults, userProps as unknown as T);
+    }, [userProps]);
 
     /**
      * Effect to register the render function and properties with the Visualizer context.
@@ -55,10 +53,19 @@ export function createVisualizerComponent<T extends VisualizerObject>(
      */
     useDeepCompareEffect(() => {
       if (!triggerRender || !removeObject) {
-        console.error(`Visualizer component "${instanceId || 'Unnamed'}" must be rendered inside a Visualizer component.`);
+        console.error(
+          `Visualizer component "${
+            instanceId || 'Unnamed'
+          }" must be rendered inside a Visualizer component.`
+        );
         return;
       }
-      triggerRender(instanceId!, renderFn, combinedProps as VisualizerObject as T, cleanupFn);
+      triggerRender(
+        instanceId!,
+        renderFn,
+        combinedProps as VisualizerObject as T,
+        cleanupFn
+      );
     }, [instanceId, combinedProps, triggerRender, renderFn]); // Deep comparison on combinedProps
 
     /**

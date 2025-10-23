@@ -21,5 +21,6 @@ export function defaultVisualizerObject(): VisualizerObject {
     startTime: 0,
     endTime: null,
     hidden: false,
+    opacity: 1,
   }
 }
