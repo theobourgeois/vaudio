@@ -45,7 +45,7 @@ export class VisualizerStore {
   /** The audio analyzer node for processing audio data */
   private analyser: AnalyserNode | null = null;
   /** The array buffer for storing audio analysis data */
-  private dataArray: Uint8Array | null = null;
+  private dataArray: Uint8Array<ArrayBuffer> | null = null;
   /** Map of object IDs to Three.js objects */
   private idToObjectMap = new Map<ObjectId, THREE.Object3D>();
   /** The HTML container element for the visualizer */
@@ -58,8 +58,6 @@ export class VisualizerStore {
   private currentTime = 0;
   /** Whether to disable resizing */
   private isResizingDisabled = false;
-  /** The audio element used for playback */
-  private audioEl: HTMLAudioElement | null = null;
 
   /**
    * Creates a new VisualizerStore instance
@@ -146,32 +144,39 @@ export class VisualizerStore {
    * Sets up audio analysis for the specified audio element
    * @param audioEl - The HTML audio element to analyze
    */
-  setAudioElement(audioEl: HTMLAudioElement) {
+  setAudioElement(audioEl?: HTMLAudioElement, stream?: MediaStream) {
     const audioContext = new AudioContext();
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    const source = audioContext.createMediaElementSource(audioEl);
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
+    if (stream) {
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+    }
+
+    if (audioEl) {
+      const source = audioContext.createMediaElementSource(audioEl);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+
+      // resume on play
+      audioEl.addEventListener('play', () => {
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+      });
+
+      audioEl.addEventListener('timeupdate', () => {
+        this.currentTime = audioEl.currentTime;
+      });
+    }
 
     this.audioContext = audioContext;
     this.analyser = analyser;
     this.dataArray = dataArray;
-    this.audioEl = audioEl;
-
-    // resume on play
-    audioEl.addEventListener('play', () => {
-      if (audioContext.state === 'suspended') {
-        audioContext.resume();
-      }
-    });
-
-    audioEl.addEventListener('timeupdate', () => {
-      this.currentTime = audioEl.currentTime;
-    });
   }
 
   /**

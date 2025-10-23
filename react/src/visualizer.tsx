@@ -34,6 +34,7 @@ export type VisualizerProps = {
   fps?: number;
   cameraOptions?: CameraOptions;
   audioOptions?: React.AudioHTMLAttributes<HTMLAudioElement>;
+  liveAudio?: 'microphone' | 'desktop';
 };
 
 export type VisualizerRef = {
@@ -104,8 +105,33 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
         fps: props.fps,
       });
 
-      store.setAudioElement(audioRef.current);
-      store.animate();
+      if (props.liveAudio === 'microphone') {
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then((stream) => {
+            store.setAudioElement(undefined, stream);
+            store.animate();
+          })
+          .catch((error) => {
+            console.error('Error connecting user audio device', error);
+          });
+      } else if (props.liveAudio === 'desktop') {
+        navigator.mediaDevices
+          .getDisplayMedia({
+            video: true,
+            audio: true,
+          })
+          .then((stream) => {
+            store.setAudioElement(undefined, stream);
+            store.animate();
+          })
+          .catch((error) => {
+            console.error('Error connecting user audio device', error);
+          });
+      } else {
+        store.setAudioElement(audioRef.current);
+        store.animate();
+      }
 
       return () => {
         store.stop();
