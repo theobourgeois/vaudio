@@ -6,4 +6,7 @@ export default defineConfig({
   dts: true,
   clean: true,
   treeshake: false,
+  banner: {
+    js: `'use client';`,
+  },
 });
