@@ -2,4 +2,5 @@ packages:
   - 'core'
   - 'react'
   - 'utils'
-  - 'demo' 
+  - 'renderer'
+  - 'demo'

@@ -14,6 +14,7 @@ import {
   RenderFn,
   TriggerRenderFn,
   VisualizerObject,
+  VisualizerBrowser,
 } from '@vaudio/core';
 import React from 'react';
 import { PerspectiveCamera, Scene, WebGLRenderer } from 'three';
@@ -40,7 +41,7 @@ export type VisualizerProps = {
 export type VisualizerRef = {
   audioElement: HTMLAudioElement;
   containerElement: HTMLDivElement;
-  store: () => VisualizerStore | null;
+  store: () => VisualizerBrowser | null;
   triggerRender: TriggerRenderFn;
   removeObject: (id: ObjectId) => void;
   camera: PerspectiveCamera | null;
@@ -55,7 +56,7 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
   function Visualizer(props, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
-    const storeRef = useRef<VisualizerStore | null>(null);
+    const storeRef = useRef<VisualizerBrowser | null>(null);
     const pendingRenderFns = useRef<
       Array<{
         id: ObjectId;
@@ -68,15 +69,15 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
     useImperativeHandle(ref, () => ({
       audioElement: audioRef.current!,
       containerElement: containerRef.current!,
-      store: () => storeRef.current!,
+      store: () => storeRef.current as VisualizerBrowser,
       triggerRender: triggerRender,
       removeObject: removeObject,
-      camera: storeRef.current?.getCamera() ?? null,
-      scene: storeRef.current?.getScene() ?? null,
-      renderer: storeRef.current?.getRenderer() ?? null,
-      audioContext: storeRef.current?.getAudioContext() ?? null,
-      analyser: storeRef.current?.getAnalyser() ?? null,
-      dataArray: storeRef.current?.getDataArray() ?? null,
+      camera: storeRef.current?.core.camera ?? null,
+      scene: storeRef.current?.core.scene ?? null,
+      renderer: storeRef.current?.core.renderer ?? null,
+      audioContext: storeRef.current?.audioContext ?? null,
+      analyser: storeRef.current?.analyser ?? null,
+      dataArray: storeRef.current?.audioData ?? null,
     }));
 
     useEffect(() => {
@@ -86,7 +87,21 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
       if (!containerRef.current || !audioRef.current || storeRef.current)
         return;
 
-      const store = new VisualizerStore(containerRef.current);
+      const canvas = document.createElement('canvas');
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.display = 'block';
+      containerRef.current.appendChild(canvas);
+
+      const store = new VisualizerBrowser(canvas, {
+        backgroundColor: props.backgroundColor,
+        cameraOptions: props.cameraOptions,
+        fps: props.fps,
+      });
       storeRef.current = store;
 
       for (const {
@@ -95,43 +110,40 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
         layer,
         cleanupFn,
       } of pendingRenderFns.current) {
-        store.registerRenderFn(id, renderFn, layer, cleanupFn);
+        store.core.registerRenderFn(id, renderFn, layer, cleanupFn);
       }
       pendingRenderFns.current = [];
 
-      store.init({
-        backgroundColor: props.backgroundColor,
-        cameraOptions: props.cameraOptions,
-        fps: props.fps,
-      });
+      // if (props.liveAudio === 'microphone') {
+      //   navigator.mediaDevices
+      //     .getUserMedia({ audio: true })
+      //     .then((stream) => {
+      //       store.setAudioElement(undefined, stream);
+      //       store.animate();
+      //     })
+      //     .catch((error) => {
+      //       console.error('Error connecting user audio device', error);
+      //     });
+      // } else if (props.liveAudio === 'desktop') {
+      //   navigator.mediaDevices
+      //     .getDisplayMedia({
+      //       video: true,
+      //       audio: true,
+      //     })
+      //     .then((stream) => {
+      //       store.setAudioElement(undefined, stream);
+      //       store.animate();
+      //     })
+      //     .catch((error) => {
+      //       console.error('Error connecting user audio device', error);
+      //     });
+      // } else {
+      //   store.setAudioElement(audioRef.current);
+      //   store.animate();
+      // }
 
-      if (props.liveAudio === 'microphone') {
-        navigator.mediaDevices
-          .getUserMedia({ audio: true })
-          .then((stream) => {
-            store.setAudioElement(undefined, stream);
-            store.animate();
-          })
-          .catch((error) => {
-            console.error('Error connecting user audio device', error);
-          });
-      } else if (props.liveAudio === 'desktop') {
-        navigator.mediaDevices
-          .getDisplayMedia({
-            video: true,
-            audio: true,
-          })
-          .then((stream) => {
-            store.setAudioElement(undefined, stream);
-            store.animate();
-          })
-          .catch((error) => {
-            console.error('Error connecting user audio device', error);
-          });
-      } else {
-        store.setAudioElement(audioRef.current);
-        store.animate();
-      }
+      store.attachAudioElement(audioRef.current);
+      store.start();
 
       return () => {
         store.stop();
@@ -139,23 +151,11 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // 2. Update settings on prop changes (without recreating store)
-    useEffect(() => {
-      const store = storeRef.current;
-      if (!store) return;
-
-      store.init({
-        backgroundColor: props.backgroundColor,
-        cameraOptions: props.cameraOptions,
-        fps: props.fps,
-      });
-    }, []);
-
     useEffect(() => {
       const store = storeRef.current;
       if (!store) return;
       if (props.backgroundColor) {
-        store.setBackgroundColor(props.backgroundColor);
+        store.core.setBackgroundColor(props.backgroundColor);
       }
     }, [props.backgroundColor]);
 
@@ -163,7 +163,7 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
       const store = storeRef.current;
       if (!store) return;
       if (props.cameraOptions) {
-        store.setCameraOptions(props.cameraOptions);
+        store.core.setCameraOptions(props.cameraOptions);
       }
     }, [props.cameraOptions]);
 
@@ -209,7 +209,7 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
     const triggerRender = useCallback<TriggerRenderFn>(
       (id, renderFn, layer, cleanupFn) => {
         if (storeRef.current) {
-          storeRef.current.registerRenderFn(
+          storeRef.current.core.registerRenderFn(
             id,
             renderFn as RenderFn<VisualizerObject>,
             layer,
@@ -228,7 +228,7 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
     );
 
     const removeObject = useCallback((id: ObjectId) => {
-      storeRef.current?.removeObject(id);
+      storeRef.current?.core.removeObject(id);
     }, []);
 
     const contextValue = useMemo(
@@ -239,9 +239,9 @@ export const Visualizer = forwardRef<VisualizerRef, VisualizerProps>(
         audioContextRef: { current: null },
         analyserRef: { current: null },
         dataArrayRef: { current: null },
-        cameraRef: { current: storeRef.current?.getCamera() ?? null },
-        sceneRef: { current: storeRef.current?.getScene() ?? null },
-        rendererRef: { current: storeRef.current?.getRenderer() ?? null },
+        cameraRef: { current: storeRef.current?.core.camera ?? null },
+        sceneRef: { current: storeRef.current?.core.scene ?? null },
+        rendererRef: { current: storeRef.current?.core.renderer ?? null },
       }),
       [removeObject, triggerRender]
     );
